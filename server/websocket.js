@@ -333,8 +333,7 @@ function manageCacheForCurrentState() {
 
     // Delete everything else (with grace period to avoid deleting active streams)
     const fs = require('fs');
-    const path = require('path');
-    const cacheDir = path.join(__dirname, '..', 'data', 'cache');
+    const cacheDir = cacheManager.cacheDir;
 
     if (fs.existsSync(cacheDir)) {
       const allCached = fs.readdirSync(cacheDir);

@@ -264,6 +264,9 @@ class CacheManager {
 
   // Get cache file path
   getCachePath(videoId) {
+    if (!this.isCached(videoId)) {
+      return null;
+    }
     const metadata = this.getMetadata(videoId);
     if (!metadata) {
       return null;

@@ -52,9 +52,8 @@ app.get('/api/network-info', (req, res) => {
 
 // API endpoint for video URLs
 app.get('/api/video/:id', async (req, res) => {
+  const videoId = req.params.id;
   try {
-    const videoId = req.params.id;
-
     // Ensure video is cached (will download if needed)
     const cacheManager = require('./cache-manager');
     const metadata = await cacheManager.ensureCached(videoId);
@@ -66,7 +65,7 @@ app.get('/api/video/:id', async (req, res) => {
       duration: metadata.duration
     });
   } catch (error) {
-    logger.error('Error getting video', { error: error.message, videoId: req.params.videoId });
+    logger.error('Error getting video', { error: error.message, videoId });
     res.status(500).json({
       error: 'Failed to get video',
       message: error.message
@@ -76,17 +75,28 @@ app.get('/api/video/:id', async (req, res) => {
 
 // Stream endpoint for cached video (single muxed file)
 app.get('/api/stream/:videoId', (req, res) => {
+  const videoId = req.params.videoId;
   try {
     const cacheManager = require('./cache-manager');
-    const filePath = cacheManager.getCachePath(req.params.videoId);
+    const filePath = cacheManager.getCachePath(videoId);
 
     if (!filePath) {
       return res.status(404).json({ error: 'Video not cached' });
     }
 
-    res.sendFile(filePath);
+    res.sendFile(filePath, { dotfiles: 'allow' }, (err) => {
+      if (err) {
+        if (err.code === 'ECONNABORTED' || req.destroyed) {
+          return;
+        }
+        if (!res.headersSent) {
+          logger.error('Video stream error', { error: err.message, videoId });
+          res.status(err.status || 500).json({ error: true, message: err.message });
+        }
+      }
+    });
   } catch (error) {
-    logger.error('Video stream error', { error: error.message, videoId: req.params.videoId });
+    logger.error('Video stream error', { error: error.message, videoId });
     res.status(500).json({ error: true, message: error.message });
   }
 });
